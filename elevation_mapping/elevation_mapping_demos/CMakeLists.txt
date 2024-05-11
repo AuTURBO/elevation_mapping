@@ -2,11 +2,8 @@ cmake_minimum_required(VERSION 3.5.1)
 project(elevation_mapping_demos)
 
 ## Find catkin macros and libraries
-find_package(catkin REQUIRED COMPONENTS
-  elevation_mapping
-  grid_map_rviz_plugin
-  rviz
-)
+find_package(elevation_mapping REQUIRED)
+find_package(grid_map_rviz_plugin REQUIRED)
 
 
 ###################################
@@ -19,26 +16,26 @@ find_package(catkin REQUIRED COMPONENTS
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
 
-catkin_package(
-  #INCLUDE_DIRS include
-  #LIBRARIES
-  CATKIN_DEPENDS
-    elevation_mapping
-    grid_map_rviz_plugin
-    rviz
-  #DEPENDS
-)
+# catkin_package(
+#   #INCLUDE_DIRS include
+#   #LIBRARIES
+#   CATKIN_DEPENDS
+#     elevation_mapping
+#     grid_map_rviz_plugin
+#     rviz
+#   #DEPENDS
+# )
 
 #############
 ## Install ##
 #############
 
 install(DIRECTORY config doc launch rviz sample_data
-  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
+  DESTINATION share/${PROJECT_NAME}
 )
 
 install(PROGRAMS scripts/tf_to_pose_publisher.py
-  DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+  DESTINATION lib/${PROJECT_NAME}
 )
 
 ##############
