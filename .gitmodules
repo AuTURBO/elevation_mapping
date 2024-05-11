@@ -1,0 +1,8 @@
+[submodule "kindr"]
+	path = kindr
+	url = https://github.com/ANYbotics/kindr.git
+	branch = master
+[submodule "kindr_ros"]
+	path = kindr_ros
+	url = https://github.com/SivertHavso/kindr_ros.git
+	branch = ros2
