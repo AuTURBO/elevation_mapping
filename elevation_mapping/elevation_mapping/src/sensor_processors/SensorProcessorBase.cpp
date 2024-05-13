@@ -132,8 +132,10 @@ bool SensorProcessorBase::updateTransformations(const rclcpp::Time& timeStamp) {
                                                       rclcpp::Duration::from_seconds(1.0));
     transformationSensorToMap_ = tf2::transformToEigen(transformGeom);
 
-    transformGeom = transformBuffer_->lookupTransform(generalParameters_.robotBaseFrameId_, sensorFrameId_, timeStamp,
-                                                      rclcpp::Duration(1.0, 0.0));  // TODO(max): Why wrong direction?
+    transformGeom = transformBuffer_->lookupTransform(generalParameters_.robotBaseFrameId_, sensorFrameId_, timeStamp, rclcpp::Duration(1, 0));
+
+    // transformGeom = transformBuffer_->lookupTransform(generalParameters_.robotBaseFrameId_, sensorFrameId_, timeStamp,
+    //                                                   rclcpp::Duration(1.0));  // TODO(max): Why wrong direction?
     Eigen::Quaterniond rotationQuaternion;
     tf2::fromMsg(transformGeom.transform.rotation, rotationQuaternion);
     rotationBaseToSensor_.setMatrix(rotationQuaternion.toRotationMatrix());
@@ -141,8 +143,11 @@ bool SensorProcessorBase::updateTransformations(const rclcpp::Time& timeStamp) {
     tf2::fromMsg(transformGeom.transform.translation, translationVector);
     translationBaseToSensorInBaseFrame_.toImplementation() = translationVector;
 
-    transformGeom = transformBuffer_->lookupTransform(generalParameters_.mapFrameId_, generalParameters_.robotBaseFrameId_,
-                                                    timeStamp, rclcpp::Duration(1.0, 0.0));  // TODO(max): Why wrong direction?
+    std::chrono::duration<double> duration_seconds(1.0);
+    rclcpp::Duration duration(duration_seconds);
+
+    // transformGeom = transformBuffer_->lookupTransform(generalParameters_.mapFrameId_, generalParameters_.robotBaseFrameId_,
+    //                                                 timeStamp, rclcpp::Duration(1.0));  // TODO(max): Why wrong direction?
     tf2::fromMsg(transformGeom.transform.rotation, rotationQuaternion);
     rotationMapToBase_.setMatrix(rotationQuaternion.toRotationMatrix());
     tf2::fromMsg(transformGeom.transform.translation, translationVector);
@@ -169,7 +174,8 @@ bool SensorProcessorBase::transformPointCloud(PointCloudType::ConstPtr pointClou
 
   try {
     geometry_msgs::msg::TransformStamped transformGeom;
-    transformGeom = transformBuffer_->lookupTransform(targetFrame, inputFrameId, timeStamp, rclcpp::Duration(1.0, 0.0));  // FIXME: missing 0.001 retry duration
+    transformGeom = transformBuffer_->lookupTransform(generalParameters_.robotBaseFrameId_, sensorFrameId_, timeStamp, rclcpp::Duration(1, 0));
+    // transformGeom = transformBuffer_->lookupTransform(targetFrame, inputFrameId, timeStamp, rclcpp::Duration(1.0));  // FIXME: missing 0.001 retry duration
     Eigen::Affine3d transform = tf2::transformToEigen(transformGeom);
     pcl::transformPointCloud(*pointCloud, *pointCloudTransformed, transform.cast<float>());
     pointCloudTransformed->header.frame_id = targetFrame;

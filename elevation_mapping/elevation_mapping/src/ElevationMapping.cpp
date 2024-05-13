@@ -183,7 +183,7 @@ ElevationMapping::~ElevationMapping() {
 
 bool ElevationMapping::readParameters() {
   // ElevationMapping parameters.
-  nodeHandle_->declare_parameter("point_cloud_topic", "/points");
+  nodeHandle_->declare_parameter("point_cloud_topic", std::string("/point_cloud"));
   //FIXME: Fix for case when robot pose is not defined
   nodeHandle_->declare_parameter("robot_pose_with_covariance_topic", std::string("/pose"));
   nodeHandle_->declare_parameter("track_point_frame_id", std::string("/robot"));
@@ -389,7 +389,7 @@ void ElevationMapping::pointCloudCallback(sensor_msgs::msg::PointCloud2::ConstSh
   // Check if point cloud has corresponding robot pose at the beginning
   if (!receivedFirstMatchingPointcloudAndPose_) {
     const double oldestPoseTime = robotPoseCache_.getOldestTime().seconds();
-    const double currentPointCloudTime = rclcpp::Time(pointCloudMsg->header.stamp).seconds();
+    const double currentPointCloudTime = nodeHandle_->get_clock()->now().seconds(); //rclcpp::Time(pointCloudMsg->header.stamp).seconds();
 
     if (currentPointCloudTime < oldestPoseTime) {
       auto clock = nodeHandle_->get_clock();
@@ -410,7 +410,7 @@ void ElevationMapping::pointCloudCallback(sensor_msgs::msg::PointCloud2::ConstSh
 
   PointCloudType::Ptr pointCloud(new PointCloudType);
   pcl::fromPCLPointCloud2(pcl_pc, *pointCloud);
-  lastPointCloudUpdateTime_ = rclcpp::Time(1000 * pointCloud->header.stamp, RCL_ROS_TIME);
+  lastPointCloudUpdateTime_ = nodeHandle_->get_clock()->now(); //rclcpp::Time(1000 * pointCloud->header.stamp, RCL_ROS_TIME);
 
   RCLCPP_DEBUG(nodeHandle_->get_logger(), "ElevationMap received a point cloud (%i points) for elevation mapping.", static_cast<int>(pointCloud->size()));
 
@@ -495,7 +495,7 @@ void ElevationMapping::mapUpdateTimerCallback() {
     return;
   }
 
-  rclcpp::Time time = rclcpp::Clock(RCL_ROS_TIME).now();
+  rclcpp::Time time = nodeHandle_->get_clock()->now(); //rclcpp::Clock(RCL_ROS_TIME).now();
   if ((lastPointCloudUpdateTime_ - time) <= maxNoUpdateDuration_) {  // there were updates from sensordata, no need to force an update.
     return;
   }
@@ -536,7 +536,7 @@ void ElevationMapping::publishFusedMapCallback() {
 void ElevationMapping::visibilityCleanupCallback() {
   RCLCPP_DEBUG(nodeHandle_->get_logger(), "Elevation map is running visibility cleanup.");
   // Copy constructors for thread-safety.
-  map_.visibilityCleanup(rclcpp::Time(lastPointCloudUpdateTime_));
+  map_.visibilityCleanup(nodeHandle_->get_clock()->now());//rclcpp::Time(lastPointCloudUpdateTime_));
 }
 
 bool ElevationMapping::fuseEntireMapServiceCallback(const std::shared_ptr<rmw_request_id_t>, const std::shared_ptr<std_srvs::srv::Empty::Request>, std::shared_ptr<std_srvs::srv::Empty::Response>) {
@@ -596,7 +596,7 @@ bool ElevationMapping::updateMapLocation() {
 
   geometry_msgs::msg::PointStamped trackPoint;
   trackPoint.header.frame_id = trackPointFrameId_;
-  trackPoint.header.stamp = rclcpp::Time(0);
+  trackPoint.header.stamp = nodeHandle_->get_clock()->now();// rclcpp::Time(0);
   kindr_ros::convertToRosGeometryMsg(trackPoint_, trackPoint.point);
   geometry_msgs::msg::PointStamped trackPointTransformed;
 
@@ -691,7 +691,7 @@ bool ElevationMapping::initializeElevationMap() {
 
       // Listen to transform between mapFrameId_ and targetFrameInitSubmap_ and use z value for initialization
       try {
-        transform_msg = transformBuffer_->lookupTransform(mapFrameId_, targetFrameInitSubmap_, rclcpp::Time(0), rclcpp::Duration::from_seconds(5.0));
+        transform_msg = transformBuffer_->lookupTransform(mapFrameId_, targetFrameInitSubmap_, nodeHandle_->get_clock()->now(), rclcpp::Duration::from_seconds(5.0)); //rclcpp::Time(0), rclcpp::Duration::from_seconds(5.0));
         tf2::fromMsg(transform_msg, transform);
 
         RCLCPP_DEBUG_STREAM(nodeHandle_->get_logger(), "Initializing with x: " << transform.getOrigin().x() << " y: " << transform.getOrigin().y()
