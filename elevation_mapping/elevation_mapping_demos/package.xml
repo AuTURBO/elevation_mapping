@@ -9,7 +9,7 @@
   <url type="website">http://github.com/anybotics/elevation_mapping</url>
   <url type="bugtracker">http://github.com/anybotics/elevation_mapping/issues</url>
   <author email="pfankhauser@anybotics.com">Péter Fankhauser</author>
-  <buildtool_depend>catkin</buildtool_depend>
+  <buildtool_depend>ament_cmake</buildtool_depend>
   <depend>elevation_mapping</depend>
   <depend>grid_map_rviz_plugin</depend>
   <depend>rviz</depend>

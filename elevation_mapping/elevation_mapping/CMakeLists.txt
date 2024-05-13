@@ -293,4 +293,12 @@ ament_export_libraries(
 )
 ament_export_dependencies(${DEPENDENCIES})
 
+ament_export_include_directories(include/elevation_mapping)
+
+# include 디렉터리와 그 하위 디렉터리를 설치
+install(DIRECTORY include/
+  DESTINATION include
+)
+
+
 ament_package()
