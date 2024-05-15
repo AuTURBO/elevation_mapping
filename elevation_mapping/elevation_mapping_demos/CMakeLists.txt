@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.5.1)
 project(elevation_mapping_demos)
 
 ## Find catkin macros and libraries
+find_package(ament_cmake REQUIRED)
 find_package(elevation_mapping REQUIRED)
 find_package(grid_map_rviz_plugin REQUIRED)
 
@@ -74,3 +75,5 @@ if(CATKIN_ENABLE_TESTING)
     )
   endif()
 endif()
+
+ament_package()
