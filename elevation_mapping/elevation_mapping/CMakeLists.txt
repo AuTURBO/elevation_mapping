@@ -1,6 +1,10 @@
 cmake_minimum_required(VERSION 3.5.1)
 project(elevation_mapping)
 
+if(POLICY CMP0074)
+  cmake_policy(SET CMP0074 NEW)
+endif()
+
 if(NOT CMAKE_CXX_STANDARD)
   set(CMAKE_CXX_STANDARD 14)
 endif()
@@ -292,5 +296,13 @@ ament_export_libraries(
   ${PROJECT_NAME}_library
 )
 ament_export_dependencies(${DEPENDENCIES})
+
+
+ament_export_include_directories(include/elevation_mapping)
+
+# include 디렉터리와 그 하위 디렉터리를 설치
+install(DIRECTORY include/
+  DESTINATION include
+)
 
 ament_package()
