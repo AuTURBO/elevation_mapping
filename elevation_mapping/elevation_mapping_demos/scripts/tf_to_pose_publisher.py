@@ -1,61 +1,82 @@
 #!/usr/bin/env python3
+# Reffered from https://docs.ros.org/en/humble/Tutorials/Intermediate/Tf2/Writing-A-Tf2-Listener-Py.html .
 
-import rospy
-import geometry_msgs.msg
-import tf2_ros
+import math
 
-def callback(newPose):
-    """Listens to a transform between from_frame and to_frame and publishes it
-       as a pose with a zero covariance."""
-    global publisher, tf_buffer, tf_listener, from_frame, to_frame
+import geometry_msgs.msg as geometry_msgs
 
-    # Listen to transform and throw exception if the transform is not
-    # available.
+import rclpy
+from rclpy.node import Node
+
+from tf2_ros import TransformException
+from tf2_ros.buffer import Buffer
+from tf2_ros.transform_listener import TransformListener
+
+from turtlesim.srv import Spawn
+
+
+class FrameListener(Node):
+ 
+    def __init__(self):
+        super().__init__('frame_listener')
+
+        self.from_frame = self.declare_parameter(
+            "from_frame", "odom").get_parameter_value().string_value
+        self.to_frame = self.declare_parameter(
+            "to_frame", "base_footprint").get_parameter_value().string_value
+
+        # Create a buffer and listener to listen to tf2 transforms
+        self.tf_buffer = Buffer()
+        self.tf_listener = TransformListener(self.tf_buffer, self)
+
+        # Create a client to spawn a turtle
+        self.spawner = self.create_client(Spawn, 'spawn')
+
+        # Create a publisher.
+        self.publisher = self.create_publisher(
+            geometry_msgs.PoseWithCovarianceStamped, self.to_frame + '_pose',
+            1)
+
+        # Call on_timer function every second
+        self.timer = self.create_timer(1, self.on_timer)
+
+    def on_timer(self):
+        # Look up for the transformation between target_frame and turtle2 frames
+        # and send velocity commands for turtle2 to reach target_frame
+        try:
+            t = self.tf_buffer.lookup_transform(self.from_frame, self.to_frame,
+                                                rclpy.time.Time())
+        except TransformException as ex:
+            self.get_logger().info(
+                f'Could not transform {self.to_frame} to {self.from_frame}: {ex}'
+            )
+            return
+
+        msg = geometry_msgs.PoseWithCovarianceStamped()
+        msg.header = t.header
+        msg.pose.pose.position.x = t.transform.translation.x
+        msg.pose.pose.position.y = t.transform.translation.y
+        msg.pose.pose.position.z = t.transform.translation.z
+        msg.pose.pose.orientation.x = t.transform.rotation.x
+        msg.pose.pose.orientation.y = t.transform.rotation.y
+        msg.pose.pose.orientation.z = t.transform.rotation.z
+        msg.pose.pose.orientation.w = t.transform.rotation.w
+        # Since tf transforms do not have a covariance, pose is filled with
+        # a zero covariance.
+        msg.pose.covariance = [0.0] * 36
+
+        self.publisher.publish(msg)
+
+
+def main(args=None):
+    rclpy.init(args=args)
+    tf_publisher = FrameListener()
     try:
-        trans = tf_buffer.lookup_transform(from_frame, to_frame, rospy.Time())
-    except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException):
-        return
-
-    # Create and fill pose message for publishing
-    pose = geometry_msgs.msg.PoseWithCovarianceStamped()
-    pose.header = trans.header
-    pose.pose.pose.position = trans.transform.translation
-    pose.pose.pose.orientation = trans.transform.rotation
-
-    # Since tf transforms do not have a covariance, pose is filled with
-    # a zero covariance.
-    pose.pose.covariance = [0, 0, 0, 0, 0, 0,
-                            0, 0, 0, 0, 0, 0,
-                            0, 0, 0, 0, 0, 0,
-                            0, 0, 0, 0, 0, 0,
-                            0, 0, 0, 0, 0, 0,
-                            0, 0, 0, 0, 0, 0]
-
-    publisher.publish(pose)
-
-
-def main_program():
-    """ Main function initializes node and subscribers and starts
-        the ROS loop. """
-    global publisher, tf_buffer, tf_listener, from_frame, to_frame
-    rospy.init_node('tf_to_pose_publisher')
-    # Read frame id's for tf listener
-    from_frame = rospy.get_param("~from_frame")
-    to_frame = rospy.get_param("~to_frame")
-    pose_name = str(to_frame) + "_pose"
-
-    tf_buffer = tf2_ros.Buffer()
-    tf_listener = tf2_ros.TransformListener(tf_buffer)
-    publisher = rospy.Publisher(
-        pose_name, geometry_msgs.msg.PoseWithCovarianceStamped, queue_size=10)
-
-    # Set callback and start spinning
-    rospy.Timer(rospy.Duration(0.05), callback)
-    rospy.spin()
-
-
-if __name__ == '__main__':
-    try:
-        main_program()
-    except rospy.ROSInterruptException:
+        rclpy.spin(tf_publisher)
+    except KeyboardInterrupt:
         pass
+    rclpy.shutdown()
+
+
+if __name__ == "__main__":
+    main()

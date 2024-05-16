@@ -29,7 +29,7 @@ def generate_launch_description():
             'use_sim_time': use_sim_time
         }.items())
 
-    # 2. Launch Elevation Mapping node.
+    # 3. Launch Elevation Mapping node.
     param_path = os.path.join(
         get_package_share_directory('elevation_mapping_demos'), 'config')
     waffle_robot_param_path = os.path.join(param_path, 'robots',
@@ -43,8 +43,18 @@ def generate_launch_description():
         output='screen',
         parameters=[waffle_robot_param_path, postprocessing_param_path])
 
-    # 3. Run tf-to-pose publisher script.
-    # TODO: create the script file and fill this part.
+    # 4. Run tf-to-pose publisher script.
+    from_frame = LaunchConfiguration('from_frame', default='odom')
+    to_frame = LaunchConfiguration('to_frame', default='base_footprint')
+    tf_to_pose_publisher = Node(
+        package='elevation_mapping_demos',
+        executable='tf_to_pose_publisher.py',
+        name='tf_to_pose_publisher',
+        output='screen',
+        parameters=[{
+            'from_frame': from_frame,
+            'to_frame': to_frame
+        }])
 
     # 4. Launch RViz.
     rviz = Node(package='rviz2',
@@ -62,6 +72,7 @@ def generate_launch_description():
     ld.add_action(turtlebot_model)
     ld.add_action(gazebo_world_launch)
     ld.add_action(elevation_mapping_node)
+    ld.add_action(tf_to_pose_publisher)
     ld.add_action(rviz)
 
     return ld
