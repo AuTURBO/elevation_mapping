@@ -9,7 +9,7 @@
     input_sources:
       front: # A name to identify the input source
         type: pointcloud # Supported types: pointcloud
-        topic: /camera/depth/points_downsampled
+        topic: /intel_realsense_r200_depth/points
         queue_size: 1
         publish_on_update: true # Wheter to publish the elevation map after a callback from this source.
         sensor_processor:

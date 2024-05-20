@@ -31,7 +31,7 @@ find_package(grid_map_rviz_plugin REQUIRED)
 ## Install ##
 #############
 
-install(DIRECTORY config doc launch rviz sample_data
+install(DIRECTORY config doc launch rviz sample_data urdf
   DESTINATION share/${PROJECT_NAME}
 )
 

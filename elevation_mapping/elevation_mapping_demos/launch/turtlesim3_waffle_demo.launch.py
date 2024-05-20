@@ -20,7 +20,7 @@ def generate_launch_description():
     use_sim_time = LaunchConfiguration('use_sim_time', default='true')
     gazebo_world_launch = IncludeLaunchDescription(
         PythonLaunchDescriptionSource([
-            os.path.join(get_package_share_directory('turtlebot3_gazebo'),
+            os.path.join(get_package_share_directory('elevation_mapping_demos'),
                          'launch', 'turtlebot3_house.launch.py')
         ]),
         launch_arguments={
