@@ -14,7 +14,7 @@ $ ros2 run elevation_mapping elevation_mapping_node --ros-args -p use_sim_time:=
 * Launch elevation_mapping with gazebo simulation:  
 
 ```bash
-$ ros2 launch elevation_mapping gazebo_elevation_mapping.launch.py
+$ ros2 launch elevation_mapping_demos turtlesim3_waffle_demo.launch.py
 ```
 ```bash
 # Open a new terminal.  
