@@ -46,14 +46,15 @@ def generate_launch_description():
         PythonLaunchDescriptionSource(
             os.path.join(pkg_gazebo_ros, 'launch', 'gzclient.launch.py')))
 
+    elevation_mapping_launch_file_dir = os.path.join(
+        get_package_share_directory('elevation_mapping_demos'), 'launch')
+
     robot_state_publisher_cmd = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
-            os.path.join(turtlebot3_launch_file_dir,
+            os.path.join(elevation_mapping_launch_file_dir,
                          'robot_state_publisher.launch.py')),
         launch_arguments={'use_sim_time': use_sim_time}.items())
 
-    elevation_mapping_launch_file_dir = os.path.join(
-        get_package_share_directory('elevation_mapping_demos'), 'launch')
     spawn_turtlebot_cmd = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
             os.path.join(elevation_mapping_launch_file_dir,

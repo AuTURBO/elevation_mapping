@@ -20,8 +20,9 @@ def generate_launch_description():
     use_sim_time = LaunchConfiguration('use_sim_time', default='true')
     gazebo_world_launch = IncludeLaunchDescription(
         PythonLaunchDescriptionSource([
-            os.path.join(get_package_share_directory('elevation_mapping_demos'),
-                         'launch', 'turtlebot3_house.launch.py')
+            os.path.join(
+                get_package_share_directory('elevation_mapping_demos'),
+                'launch', 'turtlebot3_house.launch.py')
         ]),
         launch_arguments={
             'x_pose': x_pose,
@@ -46,17 +47,16 @@ def generate_launch_description():
     # 4. Run tf-to-pose publisher script.
     from_frame = LaunchConfiguration('from_frame', default='odom')
     to_frame = LaunchConfiguration('to_frame', default='base_footprint')
-    tf_to_pose_publisher = Node(
-        package='elevation_mapping_demos',
-        executable='tf_to_pose_publisher.py',
-        name='tf_to_pose_publisher',
-        output='screen',
-        parameters=[{
-            'from_frame': from_frame,
-            'to_frame': to_frame
-        }])
+    tf_to_pose_publisher = Node(package='elevation_mapping_demos',
+                                executable='tf_to_pose_publisher.py',
+                                name='tf_to_pose_publisher',
+                                output='screen',
+                                parameters=[{
+                                    'from_frame': from_frame,
+                                    'to_frame': to_frame
+                                }])
 
-    # 4. Launch RViz.
+    # 5. Launch RViz.
     rviz = Node(package='rviz2',
                 executable='rviz2',
                 name='rviz2',
