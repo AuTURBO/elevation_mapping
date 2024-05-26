@@ -17,7 +17,7 @@ bool InputSourceManager::configureFromRos(const std::string& inputSourcesNamespa
   nodeHandle_->declare_parameter(inputSourcesNamespace, std::vector<std::string>());
 
   // Configure the visualizations from a configuration stored on the parameter server.
-  std::vector<std::string> inputSourcesConfiguration;
+  std::vector<std::string> inputSourcesConfiguration{'front'};
   if (!nodeHandle_->get_parameter(inputSourcesNamespace, inputSourcesConfiguration)) {
     RCLCPP_WARN(nodeHandle_->get_logger(),
         "Could not load the input sources configuration from parameter\n "

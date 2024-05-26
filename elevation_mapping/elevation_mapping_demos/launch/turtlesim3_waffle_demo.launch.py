@@ -40,7 +40,7 @@ def generate_launch_description():
     elevation_mapping_node = Node(
         package='elevation_mapping',
         executable='elevation_mapping',
-        name='elevation_mapping_node',
+        name='elevation_mapping',
         output='screen',
         parameters=[waffle_robot_param_path, postprocessing_param_path])
 
