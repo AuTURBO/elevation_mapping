@@ -389,7 +389,7 @@ void ElevationMapping::pointCloudCallback(sensor_msgs::msg::PointCloud2::ConstSh
   // Check if point cloud has corresponding robot pose at the beginning
   if (!receivedFirstMatchingPointcloudAndPose_) {
     const double oldestPoseTime = robotPoseCache_.getOldestTime().seconds();
-    const double currentPointCloudTime = rclcpp::Time(pointCloudMsg->header.stamp).seconds();
+    const double currentPointCloudTime = rclcpp::Time(pointCloudMsg->header.stamp, RCL_ROS_TIME).seconds();
 
     if (currentPointCloudTime < oldestPoseTime) {
       auto clock = nodeHandle_->get_clock();
@@ -536,7 +536,7 @@ void ElevationMapping::publishFusedMapCallback() {
 void ElevationMapping::visibilityCleanupCallback() {
   RCLCPP_DEBUG(nodeHandle_->get_logger(), "Elevation map is running visibility cleanup.");
   // Copy constructors for thread-safety.
-  map_.visibilityCleanup(rclcpp::Time(lastPointCloudUpdateTime_));
+  map_.visibilityCleanup(rclcpp::Time(lastPointCloudUpdateTime_, RCL_ROS_TIME));
 }
 
 bool ElevationMapping::fuseEntireMapServiceCallback(const std::shared_ptr<rmw_request_id_t>, const std::shared_ptr<std_srvs::srv::Empty::Request>, std::shared_ptr<std_srvs::srv::Empty::Response>) {
@@ -596,7 +596,7 @@ bool ElevationMapping::updateMapLocation() {
 
   geometry_msgs::msg::PointStamped trackPoint;
   trackPoint.header.frame_id = trackPointFrameId_;
-  trackPoint.header.stamp = rclcpp::Time(0);
+  trackPoint.header.stamp = rclcpp::Time(0, 0, RCL_ROS_TIME);
   kindr_ros::convertToRosGeometryMsg(trackPoint_, trackPoint.point);
   geometry_msgs::msg::PointStamped trackPointTransformed;
 
@@ -691,7 +691,7 @@ bool ElevationMapping::initializeElevationMap() {
 
       // Listen to transform between mapFrameId_ and targetFrameInitSubmap_ and use z value for initialization
       try {
-        transform_msg = transformBuffer_->lookupTransform(mapFrameId_, targetFrameInitSubmap_, rclcpp::Time(0), rclcpp::Duration::from_seconds(5.0));
+        transform_msg = transformBuffer_->lookupTransform(mapFrameId_, targetFrameInitSubmap_, rclcpp::Time(0, 0, RCL_ROS_TIME), rclcpp::Duration::from_seconds(5.0));
         tf2::fromMsg(transform_msg, transform);
 
         RCLCPP_DEBUG_STREAM(nodeHandle_->get_logger(), "Initializing with x: " << transform.getOrigin().x() << " y: " << transform.getOrigin().y()

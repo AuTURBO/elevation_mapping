@@ -93,7 +93,7 @@ bool SensorProcessorBase::process(const PointCloudType::ConstPtr pointCloudInput
   // RCLCPP_DEBUG(rclcpp::get_logger("sensor_processor"), "Sensor Processor processing for frame %s", sensorFrameId_.c_str());
 
   // Update transformation at timestamp of pointcloud   
-  rclcpp::Time timeStamp = rclcpp::Time(1000 * pointCloudInput->header.stamp);
+  rclcpp::Time timeStamp = rclcpp::Time(1000 * pointCloudInput->header.stamp, RCL_ROS_TIME);
   if (!updateTransformations(timeStamp)) {
     return false;
   }
@@ -164,7 +164,7 @@ bool SensorProcessorBase::updateTransformations(const rclcpp::Time& timeStamp) {
 
 bool SensorProcessorBase::transformPointCloud(PointCloudType::ConstPtr pointCloud, PointCloudType::Ptr pointCloudTransformed,
                                               const std::string& targetFrame) {
-  rclcpp::Time timeStamp = rclcpp::Time(1000 * pointCloud->header.stamp);  
+  rclcpp::Time timeStamp = rclcpp::Time(1000 * pointCloud->header.stamp, RCL_ROS_TIME);
   const std::string inputFrameId(pointCloud->header.frame_id);
 
   try {
