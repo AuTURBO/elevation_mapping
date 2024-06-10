@@ -61,6 +61,8 @@ class ElevationMapping {
    */
   virtual ~ElevationMapping();
 
+  double confidence_ratio_;
+
   /*!
    * Callback function for new data to be added to the elevation map.
    *

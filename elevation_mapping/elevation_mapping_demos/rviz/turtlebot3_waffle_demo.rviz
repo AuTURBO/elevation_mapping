@@ -43,7 +43,7 @@ Visualization Manager:
       Value: true
     - Class: rviz_default_plugins/TF
       Enabled: true
-      Frame Timeout: 15
+      Frame Timeout: 1000
       Frames:
         All Enabled: true
         base_footprint:
