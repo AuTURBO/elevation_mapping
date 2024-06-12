@@ -35,10 +35,10 @@ class FrameListener(Node):
         # Create a publisher.
         self.publisher = self.create_publisher(
             geometry_msgs.PoseWithCovarianceStamped, self.to_frame + '_pose',
-            1)
+            10)
 
         # Call on_timer function every second
-        self.timer = self.create_timer(1, self.on_timer)
+        self.timer = self.create_timer(0.05, self.on_timer)
 
     def on_timer(self):
         # Look up for the transformation between target_frame and turtle2 frames
