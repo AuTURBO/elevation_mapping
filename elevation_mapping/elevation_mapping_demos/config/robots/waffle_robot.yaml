@@ -45,5 +45,3 @@ elevation_mapping:
     margin_init_submap: 0.3
     init_submap_height_offset: 0.01
     target_frame_init_submap: base_footprint
-
-    confidence_ratio: 0.8

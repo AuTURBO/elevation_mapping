@@ -59,8 +59,7 @@ ElevationMapping::ElevationMapping(std::shared_ptr<rclcpp::Node>& nodeHandle) :
       lengthInXInitSubmap_(1.2),
       lengthInYInitSubmap_(1.8),
       marginInitSubmap_(0.3),  
-      initSubmapHeightOffset_(0.0),
-      confidence_ratio_(0.8)
+      initSubmapHeightOffset_(0.0)
        {
 #ifndef NDEBUG
   // Print a warning if built in debug.
@@ -82,31 +81,28 @@ ElevationMapping::ElevationMapping(std::shared_ptr<rclcpp::Node>& nodeHandle) :
   RCLCPP_INFO(nodeHandle_->get_logger(), "Successfully launched node.");
 }
 
-void ElevationMapping::setupSubscribers() {  
+void ElevationMapping::setupSubscribers() {  // Handle deprecated point_cloud_topic and input_sources configuration.
   auto res = nodeHandle_->get_topic_names_and_types();
-  for (auto a : res) {
+  for (auto a:res){
     RCLCPP_INFO(nodeHandle_->get_logger(), "topic: %s", a.first.c_str());
   }
 
-  RCLCPP_INFO(nodeHandle_->get_logger(), "~ ------------------------------- ~");
-
-  // ?? 이게 맞나? const bool configuredInputSources = inputSources_.configureFromRos("input_sources");
-  // const bool hasDeprecatedPointcloudTopic = nodeHandle_->get_parameter("point_cloud_topic", pointCloudTopic_);
-  pointCloudTopic_ = "/intel_realsense_r200_depth/points"; // 하드코딩된 point_cloud_topic 값
-
-  RCLCPP_INFO(nodeHandle_->get_logger(), "@ ------------------------------- @");
-
-  // if (!configuredInputSources) {
-  pointCloudSubscriber_ = nodeHandle_->create_subscription<sensor_msgs::msg::PointCloud2>(
-      pointCloudTopic_, 1, [&](sensor_msgs::msg::PointCloud2::ConstSharedPtr msg) {
-        pointCloudCallback(msg, true, sensorProcessor_);
-      });
-  // } else {
-  //   RCLCPP_ERROR(nodeHandle_->get_logger(), "Input sources not configured!");
-  // }
-
-  RCLCPP_INFO(nodeHandle_->get_logger(), "? ------------------------------- ?");
-
+  const bool configuredInputSources = inputSources_.configureFromRos("input_sources");
+  const bool hasDeprecatedPointcloudTopic = nodeHandle_->get_parameter("point_cloud_topic", pointCloudTopic_);
+  if (hasDeprecatedPointcloudTopic) {
+    RCLCPP_WARN(nodeHandle_->get_logger(), "Parameter 'point_cloud_topic' is deprecated, please use 'input_sources' instead.");
+  }
+  /*if (!configuredInputSources && hasDeprecatedPointcloudTopic) {
+    pointCloudSubscriber_ = nodeHandle_->create_subscription<sensor_msgs::msg::PointCloud2>(        
+        pointCloudTopic_, 1, [&](sensor_msgs::msg::PointCloud2::ConstSharedPtr msg) {pointCloudCallback(msg, true, sensorProcessor_);});
+  }*/       
+  if (configuredInputSources) {
+    inputSources_.registerCallbacks(*this, std::make_pair("pointcloud", &ElevationMapping::pointCloudCallback));
+    // inputSources_.registerCallbacks(*this, std::make_pair("pointcloud", pointCloudCallback));
+  } else {
+    RCLCPP_ERROR(nodeHandle_->get_logger(), "Input sources not configured!");
+  }
+  
   if (!robotPoseTopic_.empty()) {
     robotPoseSubscriber_.subscribe(nodeHandle_, robotPoseTopic_);
     robotPoseCache_.connectInput(robotPoseSubscriber_);
@@ -114,9 +110,6 @@ void ElevationMapping::setupSubscribers() {
   } else {
     ignoreRobotMotionUpdates_ = true;
   }
-
-  RCLCPP_INFO(nodeHandle_->get_logger(), "! ------------------------------- !");
-
 }
 
 void ElevationMapping::setupServices() {
@@ -160,46 +153,32 @@ void ElevationMapping::setupTimers() {
 ElevationMapping::~ElevationMapping() {
   // Shutdown all services.
 
-  // {  // Fusion Service Queue
-  //   // rawSubmapService_.reset();
-  //   // fusionTriggerService_.reset();
-  //   // fusedSubmapService_.reset();
-  //   // fusedMapPublishTimer_->cancel();
-
-  //   // fusionServiceQueue_.disable();
-  //   // fusionServiceQueue_.clear();
-  // }
-  {
+  {  // Fusion Service Queue
     rawSubmapService_.reset();
     fusionTriggerService_.reset();
     fusedSubmapService_.reset();
-    if (fusedMapPublishTimer_) {
-      fusedMapPublishTimer_->cancel();
-    }
+    fusedMapPublishTimer_->cancel();
+
+    // fusionServiceQueue_.disable();
+    // fusionServiceQueue_.clear();
   }
 
-  {
-    if (visibilityCleanupTimer_) {
-      visibilityCleanupTimer_->cancel();
-    }
+  {  // Visibility cleanup queue
+    visibilityCleanupTimer_->cancel();
+
+    // visibilityCleanupQueue_.disable();
+    // visibilityCleanupQueue_.clear();
   }
-
-  // {  // Visibility cleanup queue
-  //   // visibilityCleanupTimer_->cancel();
-
-  //   // visibilityCleanupQueue_.disable();
-  //   // visibilityCleanupQueue_.clear();
-  // }
 
   rclcpp::shutdown();
 
   // Join threads.
-  if (fusionServiceThread_.joinable()) {
+  /*if (fusionServiceThread_.joinable()) {
     fusionServiceThread_.join();
-  }
-  if (visibilityCleanupThread_.joinable()) {
+  }*/
+  /*if (visibilityCleanupThread_.joinable()) {
     visibilityCleanupThread_.join();
-  }
+  }*/
 }
 
 bool ElevationMapping::readParameters() {
@@ -394,89 +373,46 @@ bool ElevationMapping::initialize() {
   }
 }*/
 
-// confidence_ratio 필드를 추가하는 함수
-void addConfidenceField(sensor_msgs::msg::PointCloud2& pointCloudMsg) {
-    sensor_msgs::msg::PointField confidence_ratio;
-    confidence_ratio.name = "confidence_ratio";
-    confidence_ratio.offset = pointCloudMsg.point_step;  // 마지막 필드의 다음 위치에 추가
-    confidence_ratio.datatype = sensor_msgs::msg::PointField::FLOAT32;
-    confidence_ratio.count = 1;
-
-    pointCloudMsg.fields.push_back(confidence_ratio);
-    pointCloudMsg.point_step += 4;  // FLOAT32는 4바이트
-    pointCloudMsg.row_step += 4 * pointCloudMsg.width;
-    pointCloudMsg.is_dense = false;  // 새로운 필드가 추가되어 밀도가 변경될 수 있음
-
-    // 포인트 데이터에 confidence_ratio 값 추가
-    size_t num_points = pointCloudMsg.width * pointCloudMsg.height;
-    std::vector<uint8_t> new_data(pointCloudMsg.row_step * pointCloudMsg.height);
-    for (size_t i = 0; i < num_points; ++i) {
-        // 기존 데이터를 복사
-        memcpy(&new_data[i * pointCloudMsg.point_step], &pointCloudMsg.data[i * (pointCloudMsg.point_step - 4)], pointCloudMsg.point_step - 4);
-        // 새로운 필드 데이터를 추가
-        float confidence_value = 1.0f;  // 기본 값으로 confidence_ratio를 설정
-        memcpy(&new_data[i * pointCloudMsg.point_step + confidence_ratio.offset], &confidence_value, 4);
-    }
-    pointCloudMsg.data = new_data;
-}
-
 void ElevationMapping::pointCloudCallback(sensor_msgs::msg::PointCloud2::ConstSharedPtr pointCloudMsg, bool publishPointCloud,
                                           const SensorProcessorBase::Ptr& sensorProcessor_) {
   RCLCPP_INFO(nodeHandle_->get_logger(), "Processing data from: %s", pointCloudMsg->header.frame_id.c_str());
-  RCLCPP_INFO(nodeHandle_->get_logger(), "Point cloud fields:");
-  for (const auto& field : pointCloudMsg->fields) {
-    RCLCPP_INFO(nodeHandle_->get_logger(), "  %s", field.name.c_str());
+  if (!updatesEnabled_) {
+    auto clock = nodeHandle_->get_clock();
+    RCLCPP_WARN_THROTTLE(nodeHandle_->get_logger(), *(clock), 10, "Updating of elevation map is disabled. (Warning message is throttled, 10s.)");
+    if (publishPointCloud) {
+      map_.setTimestamp(nodeHandle_->get_clock()->now());
+      map_.postprocessAndPublishRawElevationMap();
+    }
+    return;
   }
 
-  sensor_msgs::msg::PointCloud2 modifiedPointCloudMsg = *pointCloudMsg;
-  addConfidenceField(modifiedPointCloudMsg);
+  // Check if point cloud has corresponding robot pose at the beginning
+  if (!receivedFirstMatchingPointcloudAndPose_) {
+    const double oldestPoseTime = robotPoseCache_.getOldestTime().seconds();
+    const double currentPointCloudTime = rclcpp::Time(pointCloudMsg->header.stamp, RCL_ROS_TIME).seconds();
 
-  for (const auto& field : modifiedPointCloudMsg.fields) {
-    RCLCPP_INFO(nodeHandle_->get_logger(), " modify>  %s", field.name.c_str());
+    if (currentPointCloudTime < oldestPoseTime) {
+      auto clock = nodeHandle_->get_clock();
+      RCLCPP_WARN_THROTTLE(nodeHandle_->get_logger(), *(clock), 5, "No corresponding point cloud and pose are found. Waiting for first match. (Warning message is throttled, 5s.)");
+      return;
+    } else {
+      RCLCPP_INFO(nodeHandle_->get_logger(), "First corresponding point cloud and pose found, elevation mapping started. ");
+      receivedFirstMatchingPointcloudAndPose_ = true;
+    }
   }
 
-  RCLCPP_INFO(nodeHandle_->get_logger(), "------------------------------------");
+  // stopMapUpdateTimer();
 
-  // Convert the sensor_msgs::PointCloud2 data to pcl::PointCloud.
-//???  // pcl::PCLPointCloud2 pcl_pc;
-  // pcl_conversions::toPCL(*pointCloudMsg, pcl_pc);
-
-  // for (const auto& field : pcl_pc.fields) {
-  //   RCLCPP_INFO(nodeHandle_->get_logger(), "  %s", field.name.c_str());
-  // }
-
-  RCLCPP_INFO(nodeHandle_->get_logger(), "--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=---------------");
-
-  // pcl::PointCloud<pcl::PointXYZRGBConfidenceRatio>::Ptr pointCloud(new pcl::PointCloud<pcl::PointXYZRGBConfidenceRatio>);
-
-  //pcl::PointCloud<pcl::PointXYZRGB>::Ptr pointCloud(new pcl::PointCloud<pcl::PointXYZRGB>);
-
-  // for (const auto& point : pointCloud->points) {
-  //   RCLCPP_INFO(nodeHandle_->get_logger(), "Point: x=%f, y=%f, z=%f, confidence_ratio=%f", point.x, point.y, point.z, point.confidence_ratio);
-  // }
-
+  // Convert the sensor_msgs/PointCloud2 data to pcl/PointCloud.
+  // TODO(max): Double check with http://wiki.ros.org/hydro/Migration
   pcl::PCLPointCloud2 pcl_pc;
-  pcl_conversions::toPCL(modifiedPointCloudMsg, pcl_pc);
+  pcl_conversions::toPCL(*pointCloudMsg, pcl_pc);
 
-  //pcl::fromPCLPointCloud2(pcl_pc, *pointCloud);
+  PointCloudType::Ptr pointCloud(new PointCloudType);
+  pcl::fromPCLPointCloud2(pcl_pc, *pointCloud);
+  lastPointCloudUpdateTime_ = rclcpp::Time(1000 * pointCloud->header.stamp, RCL_ROS_TIME);
 
-  RCLCPP_INFO(nodeHandle_->get_logger(), "-~+-++++++++++++++++++++++++++++++++++++++++++++++++++++");
-
-  //lastPointCloudUpdateTime_ = rclcpp::Time(1000 * modifiedPointCloudMsg.header.stamp, RCL_ROS_TIME);
-  lastPointCloudUpdateTime_ = rclcpp::Time(modifiedPointCloudMsg.header.stamp.sec * 1000 + modifiedPointCloudMsg.header.stamp.nanosec / 1000000, RCL_ROS_TIME);
-
-  RCLCPP_INFO(nodeHandle_->get_logger(), "-~+-++---------------------------------++++");
-
-  //  pcl::PointCloud<pcl::PointXYZRGBConfidenceRatio>::ConstPtr pclPointCloudPtr(new pcl::PointCloud<pcl::PointXYZRGBConfidenceRatio>());
-  //  pcl::fromPCLPointCloud2(pcl_pc, pclPointCloudPtr);
-
-  pcl::PointCloud<pcl::PointXYZRGBConfidenceRatio> pclPointCloud;
-  pcl::fromPCLPointCloud2(pcl_pc, pclPointCloud);
-  pcl::PointCloud<pcl::PointXYZRGBConfidenceRatio>::ConstPtr pclPointCloudPtr(new pcl::PointCloud<pcl::PointXYZRGBConfidenceRatio>(pclPointCloud));
-
-  RCLCPP_INFO(nodeHandle_->get_logger(), "-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
-
-  //RCLCPP_DEBUG(nodeHandle_->get_logger(), "ElevationMap received a point cloud (%i points) for elevation mapping.", static_cast<int>(modifiedPointCloudMsg.size()));
+  RCLCPP_DEBUG(nodeHandle_->get_logger(), "ElevationMap received a point cloud (%i points) for elevation mapping.", static_cast<int>(pointCloud->size()));
 
   // Get robot pose covariance matrix at timestamp of point cloud.
   Eigen::Matrix<double, 6, 6> robotPoseCovariance;
@@ -485,7 +421,6 @@ void ElevationMapping::pointCloudCallback(sensor_msgs::msg::PointCloud2::ConstSh
     std::shared_ptr<const geometry_msgs::msg::PoseWithCovarianceStamped> poseMessage = robotPoseCache_.getElemBeforeTime(lastPointCloudUpdateTime_);
     if (!poseMessage) {
       // Tell the user that either for the timestamp no pose is available or that the buffer is possibly empty
-
       if (robotPoseCache_.getOldestTime().seconds() > lastPointCloudUpdateTime_.seconds()) {
         RCLCPP_ERROR(nodeHandle_->get_logger(), "The oldest pose available is at %f, requested pose at %f", robotPoseCache_.getOldestTime().seconds(),
                   lastPointCloudUpdateTime_.seconds());
@@ -497,13 +432,11 @@ void ElevationMapping::pointCloudCallback(sensor_msgs::msg::PointCloud2::ConstSh
     robotPoseCovariance = Eigen::Map<const Eigen::MatrixXd>(poseMessage->pose.covariance.data(), 6, 6);
   }
 
-  
-
   // Process point cloud.
   PointCloudType::Ptr pointCloudProcessed(new PointCloudType);
   Eigen::VectorXf measurementVariances;
-  if (!sensorProcessor_->process(pclPointCloudPtr, robotPoseCovariance, pointCloudProcessed, measurementVariances,
-                                 pointCloudMsg->header.frame_id)) {                           
+  if (!sensorProcessor_->process(pointCloud, robotPoseCovariance, pointCloudProcessed, measurementVariances,
+                                 pointCloudMsg->header.frame_id)) {
     if (!sensorProcessor_->isTfAvailableInBuffer()) {
       rclcpp::Clock clock;
       RCLCPP_INFO_THROTTLE(nodeHandle_->get_logger(), clock, 10, "Waiting for tf transformation to be available. (Message is throttled, 10s.)");
@@ -552,7 +485,6 @@ void ElevationMapping::pointCloudCallback(sensor_msgs::msg::PointCloud2::ConstSh
 
   // resetMapUpdateTimer();
 }
-
 
 void ElevationMapping::mapUpdateTimerCallback() {
   if (!updatesEnabled_) {
