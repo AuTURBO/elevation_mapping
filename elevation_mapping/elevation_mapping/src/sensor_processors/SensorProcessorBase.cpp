@@ -57,18 +57,37 @@ SensorProcessorBase::~SensorProcessorBase() = default;
 bool SensorProcessorBase::readParameters(std::string& inputSourceName) {
   Parameters parameters;
 
-  // TODO: Add parameter validation
-  nodeHandle_->declare_parameter(inputSourceName + ".sensor_processor.ignore_points_above", rclcpp::ParameterValue(std::numeric_limits<double>::infinity()));
-  nodeHandle_->declare_parameter(inputSourceName + ".sensor_processor.ignore_points_below", rclcpp::ParameterValue(-std::numeric_limits<double>::infinity()));
-  nodeHandle_->declare_parameter(inputSourceName + ".sensor_processor.apply_voxelgrid_filter", rclcpp::ParameterValue(false));
-  nodeHandle_->declare_parameter(inputSourceName + ".sensor_processor.voxelgrid_filter_size", rclcpp::ParameterValue(0.0));
+  if(!nodeHandle_->has_parameter(inputSourceName + ".sensor_processor.ignore_points_above")) {
+    nodeHandle_->declare_parameter(inputSourceName + ".sensor_processor.ignore_points_above", 0.4);
+  }
+  if(!nodeHandle_->has_parameter(inputSourceName + ".sensor_processor.ignore_points_below")) {
+    nodeHandle_->declare_parameter(inputSourceName + ".sensor_processor.ignore_points_below", rclcpp::ParameterValue(-std::numeric_limits<double>::infinity()));
+  }
+  if(!nodeHandle_->has_parameter(inputSourceName + ".sensor_processor.apply_voxelgrid_filter")) {
+    nodeHandle_->declare_parameter(inputSourceName + ".sensor_processor.apply_voxelgrid_filter", rclcpp::ParameterValue(false));
+  }
+  if(!nodeHandle_->has_parameter(inputSourceName + ".sensor_processor.voxelgrid_filter_size")) {
+    nodeHandle_->declare_parameter(inputSourceName + ".sensor_processor.voxelgrid_filter_size", 6.0);
+  }
 
-  nodeHandle_->declare_parameter(inputSourceName + ".sensor_processor.ignore_points_inside_min_x", 0.0);
-  nodeHandle_->declare_parameter(inputSourceName + ".sensor_processor.ignore_points_inside_max_x", 0.0);
-  nodeHandle_->declare_parameter(inputSourceName + ".sensor_processor.ignore_points_inside_min_y", 0.0);
-  nodeHandle_->declare_parameter(inputSourceName + ".sensor_processor.ignore_points_inside_max_y", 0.0);
-  nodeHandle_->declare_parameter(inputSourceName + ".sensor_processor.ignore_points_inside_min_z", 0.0);
-  nodeHandle_->declare_parameter(inputSourceName + ".sensor_processor.ignore_points_inside_max_z", 0.0);
+  if(!nodeHandle_->has_parameter(inputSourceName + ".sensor_processor.ignore_points_inside_min_x")) {
+    nodeHandle_->declare_parameter(inputSourceName + ".sensor_processor.ignore_points_inside_min_x", rclcpp::ParameterValue(0.0));
+  }
+  if(!nodeHandle_->has_parameter(inputSourceName + ".sensor_processor.ignore_points_inside_max_x")) {
+    nodeHandle_->declare_parameter(inputSourceName + ".sensor_processor.ignore_points_inside_max_x", rclcpp::ParameterValue(0.0));
+  }
+  if(!nodeHandle_->has_parameter(inputSourceName + ".sensor_processor.ignore_points_inside_min_y")) {
+    nodeHandle_->declare_parameter(inputSourceName + ".sensor_processor.ignore_points_inside_min_y", rclcpp::ParameterValue(0.0));
+  }
+  if(!nodeHandle_->has_parameter(inputSourceName + ".sensor_processor.ignore_points_inside_max_y")) {
+    nodeHandle_->declare_parameter(inputSourceName + ".sensor_processor.ignore_points_inside_max_y", rclcpp::ParameterValue(0.0));
+  }
+  if(!nodeHandle_->has_parameter(inputSourceName + ".sensor_processor.ignore_points_inside_min_z")) {
+    nodeHandle_->declare_parameter(inputSourceName + ".sensor_processor.ignore_points_inside_min_z", rclcpp::ParameterValue(0.0));
+  }
+  if(!nodeHandle_->has_parameter(inputSourceName + ".sensor_processor.ignore_points_inside_max_z")) {
+    nodeHandle_->declare_parameter(inputSourceName + ".sensor_processor.ignore_points_inside_max_z", rclcpp::ParameterValue(0.0));
+  }
 
   nodeHandle_->get_parameter(inputSourceName + ".sensor_processor.ignore_points_above", parameters.ignorePointsUpperThreshold_);
   nodeHandle_->get_parameter(inputSourceName + ".sensor_processor.ignore_points_below", parameters.ignorePointsLowerThreshold_);
@@ -253,6 +272,8 @@ bool SensorProcessorBase::filterPointCloud(const PointCloudType::Ptr pointCloud)
   }
 
   // Reduce points using VoxelGrid filter.
+  // RCLCPP_INFO(nodeHandle_->get_logger(), "Is applyVoxelGridFilter_ %d", parameters.applyVoxelGridFilter_);
+  // RCLCPP_INFO(nodeHandle_->get_logger(), "VoxelGrid filter size %f", sensorParameters_.at("voxelgrid_filter_size"));
   if (parameters.applyVoxelGridFilter_) {
     pcl::VoxelGrid<pcl::PointXYZRGBConfidenceRatio> voxelGridFilter;
     voxelGridFilter.setInputCloud(pointCloud);

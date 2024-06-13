@@ -17,15 +17,16 @@ bool InputSourceManager::configureFromRos(const std::string& inputSourcesNamespa
   nodeHandle_->declare_parameter(inputSourcesNamespace, std::vector<std::string>());
 
   // Configure the visualizations from a configuration stored on the parameter server.
-  std::vector<std::string> inputSourcesConfiguration{'front'};
-  if (!nodeHandle_->get_parameter(inputSourcesNamespace, inputSourcesConfiguration)) {
-    RCLCPP_WARN(nodeHandle_->get_logger(),
-        "Could not load the input sources configuration from parameter\n "
-        "%s, are you sure it was pushed to the parameter server? Assuming\n "
-        "that you meant to leave it empty. Not subscribing to any inputs!\n",
-        inputSourcesNamespace.c_str());
-    return false;
-  }
+  std::vector<std::string> inputSourcesConfiguration;
+  inputSourcesConfiguration.push_back("front");
+  // if (!nodeHandle_->get_parameter(inputSourcesNamespace, inputSourcesConfiguration)) {
+  //   RCLCPP_INFO(nodeHandle_->get_logger(),
+  //       "Could not load the input sources configuration from parameter\n "
+  //       "%s, are you sure it was pushed to the parameter server? Assuming\n "
+  //       "that you meant to leave it empty. Not subscribing to any inputs!\n",
+  //       inputSourcesNamespace.c_str());
+  //   return false;
+  // }
   return configure(inputSourcesConfiguration, inputSourcesNamespace);  
 }
 
@@ -36,9 +37,12 @@ bool InputSourceManager::configure(const std::vector<std::string>& config, const
  
   bool successfulConfiguration = true;
   std::set<std::string> subscribedTopics;
-  SensorProcessorBase::GeneralParameters generalSensorProcessorConfig{nodeHandle_->get_parameter("robot_base_frame_id").as_string(),
-                                                                      nodeHandle_->get_parameter("map_frame_id").as_string()};
+  // SensorProcessorBase::GeneralParameters generalSensorProcessorConfig{nodeHandle_->get_parameter("robot_base_frame_id").as_string(),
+  //                                                                   nodeHandle_->get_parameter("map_frame_id").as_string()};
+  SensorProcessorBase::GeneralParameters generalSensorProcessorConfig{"base_footprint", "odom"};
+  
   // Configure all input sources in the list.
+  RCLCPP_INFO(nodeHandle_->get_logger(), "config size: %d", config.size());
   for (auto inputConfig : config) {
     // FIXME: fix namespace and subnode
     // return leading / -> rclcpp::expand_topic_or_service_name(sourceConfigurationName + "/" + inputConfig, nodeHandle_->get_name(), nodeHandle_->get_namespace()
@@ -46,6 +50,7 @@ bool InputSourceManager::configure(const std::vector<std::string>& config, const
     Input source = Input(nodeHandle_);
 
     bool configured = source.configure(inputConfig, sourceConfigurationName, generalSensorProcessorConfig);
+    RCLCPP_INFO(nodeHandle_->get_logger(), "Configuring input source %s", inputConfig.c_str());
     if (!configured) {
       successfulConfiguration = false;
       continue;

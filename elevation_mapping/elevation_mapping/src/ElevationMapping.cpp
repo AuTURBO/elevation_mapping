@@ -88,10 +88,10 @@ void ElevationMapping::setupSubscribers() {  // Handle deprecated point_cloud_to
   }
 
   const bool configuredInputSources = inputSources_.configureFromRos("input_sources");
-  const bool hasDeprecatedPointcloudTopic = nodeHandle_->get_parameter("point_cloud_topic", pointCloudTopic_);
-  if (hasDeprecatedPointcloudTopic) {
-    RCLCPP_WARN(nodeHandle_->get_logger(), "Parameter 'point_cloud_topic' is deprecated, please use 'input_sources' instead.");
-  }
+  // const bool hasDeprecatedPointcloudTopic = nodeHandle_->get_parameter("point_cloud_topic", pointCloudTopic_);
+  // if (hasDeprecatedPointcloudTopic) {
+  //   RCLCPP_WARN(nodeHandle_->get_logger(), "Parameter 'point_cloud_topic' is deprecated, please use 'input_sources' instead.");
+  // }
   /*if (!configuredInputSources && hasDeprecatedPointcloudTopic) {
     pointCloudSubscriber_ = nodeHandle_->create_subscription<sensor_msgs::msg::PointCloud2>(        
         pointCloudTopic_, 1, [&](sensor_msgs::msg::PointCloud2::ConstSharedPtr msg) {pointCloudCallback(msg, true, sensorProcessor_);});
@@ -214,12 +214,12 @@ bool ElevationMapping::readParameters() {
   assert(maxNoUpdateDuration_.seconds() != 0.0);
 
   double timeTolerance;
-  nodeHandle_->declare_parameter("time_tolerance", 0.0);
+  nodeHandle_->declare_parameter("time_tolerance", 1.0);
   nodeHandle_->get_parameter("time_tolerance", timeTolerance);
   timeTolerance_ = rclcpp::Duration::from_seconds(timeTolerance);
 
   double fusedMapPublishingRate;
-  nodeHandle_->declare_parameter("fused_map_publishing_rate", 1.0);
+  nodeHandle_->declare_parameter("fused_map_publishing_rate", 0.5);
   nodeHandle_->get_parameter("fused_map_publishing_rate", fusedMapPublishingRate);
   if (fusedMapPublishingRate == 0.0) {
     fusedMapPublishTimerDuration_ = rclcpp::Duration::from_seconds(0.0);
@@ -253,8 +253,8 @@ bool ElevationMapping::readParameters() {
   grid_map::Position position;
   double resolution;
 
-  nodeHandle_->declare_parameter("length_in_x", 1.5);
-  nodeHandle_->declare_parameter("length_in_y", 1.5);
+  nodeHandle_->declare_parameter("length_in_x", 6.0);
+  nodeHandle_->declare_parameter("length_in_y", 6.0);
   nodeHandle_->declare_parameter("position_x",  0.0);
   nodeHandle_->declare_parameter("position_y",  0.0);
   nodeHandle_->declare_parameter("resolution",  0.01);
@@ -266,14 +266,14 @@ bool ElevationMapping::readParameters() {
   nodeHandle_->get_parameter("resolution", resolution);
   map_.setGeometry(length, resolution, position);
 
-  nodeHandle_->declare_parameter("min_variance", pow(0.003, 2));
-  nodeHandle_->declare_parameter("max_variance", pow(0.03, 2));
+  nodeHandle_->declare_parameter("min_variance", 0.0001);
+  nodeHandle_->declare_parameter("max_variance", 0.05);
   nodeHandle_->declare_parameter("mahalanobis_distance_threshold", 2.5);
-  nodeHandle_->declare_parameter("multi_height_noise", pow(0.003, 2));
+  nodeHandle_->declare_parameter("multi_height_noise", 0.001);
   nodeHandle_->declare_parameter("min_horizontal_variance", pow(resolution / 2.0, 2));  // two-sigma
   nodeHandle_->declare_parameter("max_horizontal_variance", 0.5);
   nodeHandle_->declare_parameter("underlying_map_topic", std::string());
-  nodeHandle_->declare_parameter("enable_visibility_cleanup", true);
+  nodeHandle_->declare_parameter("enable_visibility_cleanup", false);
   nodeHandle_->declare_parameter("enable_continuous_cleanup", false);
   nodeHandle_->declare_parameter("scanning_duration", 1.0);
   nodeHandle_->declare_parameter("masked_replace_service_mask_layer_name", std::string("mask"));
@@ -291,13 +291,13 @@ bool ElevationMapping::readParameters() {
   nodeHandle_->get_parameter("masked_replace_service_mask_layer_name", maskedReplaceServiceMaskLayerName_);
 
   // Settings for initializing elevation map
-  nodeHandle_->declare_parameter("initialize_elevation_map", false);
+  nodeHandle_->declare_parameter("initialize_elevation_map", true);
   nodeHandle_->declare_parameter("initialization_method", 0);
-  nodeHandle_->declare_parameter("length_in_x_init_submap", 1.2);
-  nodeHandle_->declare_parameter("length_in_y_init_submap", 1.8);
+  nodeHandle_->declare_parameter("length_in_x_init_submap", 1.0);
+  nodeHandle_->declare_parameter("length_in_y_init_submap", 1.0);
   nodeHandle_->declare_parameter("margin_init_submap", 0.3);
   nodeHandle_->declare_parameter("init_submap_height_offset", 0.0);
-  nodeHandle_->declare_parameter("target_frame_init_submap", std::string("/footprint"));
+  nodeHandle_->declare_parameter("target_frame_init_submap", std::string("/base_footprint"));
 
   nodeHandle_->get_parameter("initialize_elevation_map", initializeElevationMap_);
   nodeHandle_->get_parameter("initialization_method", initializationMethod_);
@@ -307,7 +307,7 @@ bool ElevationMapping::readParameters() {
   nodeHandle_->get_parameter("init_submap_height_offset", initSubmapHeightOffset_);
   nodeHandle_->get_parameter("target_frame_init_submap", targetFrameInitSubmap_);
 
-  nodeHandle_->declare_parameter("robot_base_frame_id", std::string("/robot"));
+  nodeHandle_->declare_parameter("robot_base_frame_id", std::string("/base_footprint"));
   
   // SensorProcessor parameters. Deprecated, use the sensorProcessor from within input sources instead!
   /*std::string sensorType;
@@ -412,7 +412,7 @@ void ElevationMapping::pointCloudCallback(sensor_msgs::msg::PointCloud2::ConstSh
   pcl::fromPCLPointCloud2(pcl_pc, *pointCloud);
   lastPointCloudUpdateTime_ = rclcpp::Time(1000 * pointCloud->header.stamp, RCL_ROS_TIME);
 
-  RCLCPP_DEBUG(nodeHandle_->get_logger(), "ElevationMap received a point cloud (%i points) for elevation mapping.", static_cast<int>(pointCloud->size()));
+  RCLCPP_INFO(nodeHandle_->get_logger(), "ElevationMap received a point cloud (%i points) for elevation mapping.", static_cast<int>(pointCloud->size()));
 
   // Get robot pose covariance matrix at timestamp of point cloud.
   Eigen::Matrix<double, 6, 6> robotPoseCovariance;
@@ -446,7 +446,7 @@ void ElevationMapping::pointCloudCallback(sensor_msgs::msg::PointCloud2::ConstSh
     // resetMapUpdateTimer();
     return;
   }
-
+  
   boost::recursive_mutex::scoped_lock scopedLock(map_.getRawDataMutex());
 
   // Update map location.
@@ -555,7 +555,7 @@ bool ElevationMapping::updatePrediction(const rclcpp::Time& time) {
     return true;
   }
 
-  RCLCPP_DEBUG(nodeHandle_->get_logger(), "Updating map with latest prediction from time %f.", robotPoseCache_.getLatestTime().seconds());
+  RCLCPP_INFO(nodeHandle_->get_logger(), "Updating map with latest prediction from time %f.", robotPoseCache_.getLatestTime().seconds());
 
   if (time + timeTolerance_ < map_.getTimeOfLastUpdate()) {
     RCLCPP_ERROR(nodeHandle_->get_logger(), "Requested update with time stamp %f, but time of last update was %f.", time.seconds(), map_.getTimeOfLastUpdate().seconds());

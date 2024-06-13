@@ -24,32 +24,47 @@ bool Input::configure(std::string& inputSourceName, const std::string& sourceCon
   Parameters parameters;
 
   std::string sensorProcessorType;
+  if(!nodeHandle_->has_parameter(sourceConfigurationName + "." + inputSourceName + ".type")) {
+    nodeHandle_->declare_parameter(sourceConfigurationName + "." + inputSourceName + ".type", "pointcloud");
+  }
+  if(!nodeHandle_->has_parameter(sourceConfigurationName + "." + inputSourceName + ".topic")) {
+    nodeHandle_->declare_parameter(sourceConfigurationName + "." + inputSourceName + ".topic", "/intel_realsense_r200_depth/points");
+  }
+  if(!nodeHandle_->has_parameter(sourceConfigurationName + "." + inputSourceName + ".queue_size")) {
+    nodeHandle_->declare_parameter(sourceConfigurationName + "." + inputSourceName + ".queue_size", 1);
+  }
+  if(!nodeHandle_->has_parameter(sourceConfigurationName + "." + inputSourceName + ".publish_on_update")) {
+    nodeHandle_->declare_parameter(sourceConfigurationName + "." + inputSourceName + ".publish_on_update", true);
+  }
+  if(!nodeHandle_->has_parameter(sourceConfigurationName + "." + inputSourceName + ".sensor_processor.type")) {
+    nodeHandle_->declare_parameter(sourceConfigurationName + "." + inputSourceName + ".sensor_processor.type", "perfect");
+  }
 
-  nodeHandle_->declare_parameter(inputSourceName + ".type", "");
-  nodeHandle_->declare_parameter(inputSourceName + ".topic", "");
-  nodeHandle_->declare_parameter(inputSourceName + ".queue_size", "");
-  nodeHandle_->declare_parameter(inputSourceName + ".publish_on_update", "");
-  nodeHandle_->declare_parameter(inputSourceName + ".sensor_processor.type", "");
-
-  if (!nodeHandle_->get_parameter(inputSourceName + ".type", parameters.type_)){
+  if (!nodeHandle_->get_parameter(sourceConfigurationName + "." + inputSourceName + ".type", parameters.type_)){
     RCLCPP_ERROR(nodeHandle_->get_logger(), "Could not configure input source %s because no type was given.", inputSourceName.c_str());
   }
 
-  if (!nodeHandle_->get_parameter(inputSourceName + ".topic", parameters.topic_)){
+  if (!nodeHandle_->get_parameter(sourceConfigurationName + "." + inputSourceName + ".topic", parameters.topic_)){
     RCLCPP_ERROR(nodeHandle_->get_logger(), "Could not configure input source %s because no topic was given.", inputSourceName.c_str());
   }
 
-  if (!nodeHandle_->get_parameter(inputSourceName + ".queue_size", parameters.queueSize_)){
+  if (!nodeHandle_->get_parameter(sourceConfigurationName + "." + inputSourceName + ".queue_size", parameters.queueSize_)){
     RCLCPP_ERROR(nodeHandle_->get_logger(), "Could not configure input source %s because no queue_size was given.", inputSourceName.c_str());
   }
 
-  if (!nodeHandle_->get_parameter(inputSourceName + ".publish_on_update", parameters.publishOnUpdate_)){
+  if (!nodeHandle_->get_parameter(sourceConfigurationName + "." + inputSourceName + ".publish_on_update", parameters.publishOnUpdate_)){
     RCLCPP_ERROR(nodeHandle_->get_logger(), "Could not configure input source %s because no publish_on_update was given.", inputSourceName.c_str());
   }
 
-  if (!nodeHandle_->get_parameter(inputSourceName + ".sensor_processor.type", sensorProcessorType)){
+  if (!nodeHandle_->get_parameter(sourceConfigurationName + "." + inputSourceName + ".sensor_processor.type", sensorProcessorType)){
     RCLCPP_ERROR(nodeHandle_->get_logger(), "Could not configure input source %s because no sensor_processor was given.", inputSourceName.c_str());
   }
+
+  RCLCPP_INFO(nodeHandle_->get_logger(), "Type: %s", parameters.type_.c_str());
+  RCLCPP_INFO(nodeHandle_->get_logger(), "Topic: %s", parameters.topic_.c_str());
+  RCLCPP_INFO(nodeHandle_->get_logger(), "Queue size: %i", parameters.queueSize_);
+  RCLCPP_INFO(nodeHandle_->get_logger(), "Publish on update: %s", parameters.publishOnUpdate_ ? "true" : "false");
+  RCLCPP_INFO(nodeHandle_->get_logger(), "Sensor processor: %s", sensorProcessorType.c_str());
 
   parameters.name_ = inputSourceName;
   
@@ -57,6 +72,7 @@ bool Input::configure(std::string& inputSourceName, const std::string& sourceCon
  
   // SensorProcessor
   if (!configureSensorProcessor(inputSourceName, sensorProcessorType, generalSensorProcessorParameters)) {
+    RCLCPP_INFO(nodeHandle_->get_logger(), "Could not configure sensor processor for input source %s.", inputSourceName.c_str());
     return false;
   }
 
@@ -73,19 +89,19 @@ std::string Input::getSubscribedTopic() const {
 
 bool Input::configureSensorProcessor(std::string& inputSourceName, const std::string& sensorType,
                                      const SensorProcessorBase::GeneralParameters& generalSensorProcessorParameters) {
-  
-  if (sensorType == "structured_light") {
-    sensorProcessor_.reset(new StructuredLightSensorProcessor(nodeHandle_, generalSensorProcessorParameters));
-  } else if (sensorType == "stereo") {
-    sensorProcessor_.reset(new StereoSensorProcessor(nodeHandle_, generalSensorProcessorParameters));
-  } else if (sensorType == "laser") {
-    sensorProcessor_.reset(new LaserSensorProcessor(nodeHandle_, generalSensorProcessorParameters));
-  } else if (sensorType == "perfect") {
-    sensorProcessor_.reset(new PerfectSensorProcessor(nodeHandle_, generalSensorProcessorParameters));
-  } else {
-    RCLCPP_ERROR(nodeHandle_->get_logger(), "The sensor type %s is not available.", sensorType.c_str());
-    return false;
-  }
+  sensorProcessor_.reset(new PerfectSensorProcessor(nodeHandle_, SensorProcessorBase::GeneralParameters{"base_footprint", "odom"}));
+  // if (sensorType == "structured_light") {
+  //   sensorProcessor_.reset(new StructuredLightSensorProcessor(nodeHandle_, generalSensorProcessorParameters));
+  // } else if (sensorType == "stereo") {
+  //   sensorProcessor_.reset(new StereoSensorProcessor(nodeHandle_, generalSensorProcessorParameters));
+  // } else if (sensorType == "laser") {
+  //   sensorProcessor_.reset(new LaserSensorProcessor(nodeHandle_, generalSensorProcessorParameters));
+  // } else if (sensorType == "perfect") {
+  //   sensorProcessor_.reset(new PerfectSensorProcessor(nodeHandle_, generalSensorProcessorParameters));
+  // } else {
+  //   RCLCPP_ERROR(nodeHandle_->get_logger(), "The sensor type %s is not available.", sensorType.c_str());
+  //   return false;
+  // }
 
   return sensorProcessor_->readParameters(inputSourceName);
 }
